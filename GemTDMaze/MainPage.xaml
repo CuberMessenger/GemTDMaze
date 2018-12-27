@@ -14,11 +14,27 @@
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
+        <Grid Name="滴汤Grid"
+              Width="0"
+              Height="0"
+              Grid.Row="0" />
+
         <MenuBar Grid.Row="0">
             <MenuBarItem Title="文件" />
             <MenuBarItem Title="编辑" />
             <MenuBarItem Title="帮助" />
         </MenuBar>
+
+        <StackPanel Grid.Row="0"
+                    Margin="0 10 10 0"
+                    Orientation="Horizontal"
+                    HorizontalAlignment="Right">
+            <TextBlock Text="迷宫长度："
+                       FontSize="15" />
+            <TextBlock Name="MazeLengthTextBlock"
+                       Text="0"
+                       FontSize="15" />
+        </StackPanel>
 
         <Grid Name="MazeGrid"
               Grid.Row="1"

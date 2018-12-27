@@ -1,27 +1,15 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Runtime.InteropServices.WindowsRuntime;
 using Windows.Foundation;
-using Windows.Foundation.Collections;
 using Windows.UI.Popups;
 using Windows.UI.ViewManagement;
 using Windows.UI.Xaml;
 using Windows.UI.Xaml.Controls;
-using Windows.UI.Xaml.Controls.Primitives;
-using Windows.UI.Xaml.Data;
 using Windows.UI.Xaml.Input;
 using Windows.UI.Xaml.Media;
-using Windows.UI.Xaml.Navigation;
-using Windows.UI.Xaml.Shapes;
-
-// https://go.microsoft.com/fwlink/?LinkId=402352&clcid=0x804 上介绍了“空白页”项模板
 
 namespace GemTDMaze {
-    /// <summary>
-    /// 可用于自身或导航至 Frame 内部的空白页。
-    /// </summary>
+    public enum BlockType { Normal, KeyPoint, Path, Unavailable };
+
     public sealed partial class MainPage : Page {
         //Static Resource
         private static Size FixedWindowSize = new Size(925d, 965d);
@@ -53,6 +41,8 @@ namespace GemTDMaze {
         //
         private Border[,] Blocks = new Border[37, 37];
 
+        private BlockType[,] BlockTypes = new BlockType[37, 37];
+
         private (int, int) Cursor = (18, 18);
 
 
@@ -62,6 +52,30 @@ namespace GemTDMaze {
             ApplicationView.PreferredLaunchWindowingMode = ApplicationViewWindowingMode.PreferredLaunchViewSize;
 
             InitializeMaze();
+            InitializeAccelerator();
+        }
+
+        private void InitializeAccelerator() {
+            var UpAccelerator = new KeyboardAccelerator { Key = Windows.System.VirtualKey.Up };
+            var DownAccelerator = new KeyboardAccelerator { Key = Windows.System.VirtualKey.Down };
+            var LeftAccelerator = new KeyboardAccelerator { Key = Windows.System.VirtualKey.Left };
+            var RightAccelerator = new KeyboardAccelerator { Key = Windows.System.VirtualKey.Right };
+            var PlaceAccelerator = new KeyboardAccelerator { Key = Windows.System.VirtualKey.Q };
+            var RemoveAccelerator = new KeyboardAccelerator { Key = Windows.System.VirtualKey.W };
+
+            UpAccelerator.Invoked += UpAccelerator_Invoked;
+            DownAccelerator.Invoked += DownAccelerator_Invoked;
+            LeftAccelerator.Invoked += LeftAccelerator_Invoked;
+            RightAccelerator.Invoked += RightAccelerator_Invoked;
+            PlaceAccelerator.Invoked += PlaceAccelerator_Invoked;
+            RemoveAccelerator.Invoked += RemoveAccelerator_Invoked;
+
+            滴汤Grid.KeyboardAccelerators.Add(UpAccelerator);
+            滴汤Grid.KeyboardAccelerators.Add(DownAccelerator);
+            滴汤Grid.KeyboardAccelerators.Add(LeftAccelerator);
+            滴汤Grid.KeyboardAccelerators.Add(RightAccelerator);
+            滴汤Grid.KeyboardAccelerators.Add(PlaceAccelerator);
+            滴汤Grid.KeyboardAccelerators.Add(RemoveAccelerator);
         }
 
         private void InitializeMaze() {
@@ -69,8 +83,8 @@ namespace GemTDMaze {
             for (int i = 0; i < 37; i++) {
                 for (int j = 0; j < 37; j++) {
                     Blocks[i, j] = new Border();
-                    Blocks[i, j].Background = ((i <= 8 && j <= 8) || (i >= 28 && j >= 28)) ? UnavailableBrush : NormalBackgroundBrush;
-                    Blocks[i, j].Tag = ((i <= 8 && j <= 8) || (i >= 28 && j >= 28)) ? "Unavailable" : "Normal";
+                    BlockTypes[i, j] = ((i <= 8 && j <= 8) || (i >= 28 && j >= 28)) ? BlockType.Unavailable : BlockType.Normal;
+                    Blocks[i, j].Tag = (i, j);
                     Blocks[i, j].BorderBrush = BlockBorderBrush;
                     Blocks[i, j].BorderThickness = new Thickness(.7d);
                     Blocks[i, j].SetValue(Grid.RowProperty, i);
@@ -83,8 +97,7 @@ namespace GemTDMaze {
 
             //Key points
             foreach (var pair in KeyPointsLookUp) {
-                Blocks[pair.Item1, pair.Item2].Background = KeyPointBrush;
-                Blocks[pair.Item1, pair.Item2].Tag = "KeyPoint";
+                BlockTypes[pair.Item1, pair.Item2] = BlockType.KeyPoint;
                 Blocks[pair.Item1, pair.Item2].Child = new TextBlock {
                     Text = pair.Item3,
                     FontSize = 18,
@@ -93,39 +106,58 @@ namespace GemTDMaze {
                 };
             }
 
+            //Add color
+            for (int i = 0; i < 37; i++) {
+                for (int j = 0; j < 37; j++) {
+                    switch (BlockTypes[i, j]) {
+                        case BlockType.Normal:
+                            Blocks[i, j].Background = NormalBackgroundBrush;
+                            break;
+                        case BlockType.KeyPoint:
+                            Blocks[i, j].Background = KeyPointBrush;
+                            break;
+                        case BlockType.Unavailable:
+                            Blocks[i, j].Background = UnavailableBrush;
+                            break;
+                        default:
+                            break;
+                    }
+                }
+            }
+
             //Paths
             for (int i = 0; i < 15; i++) {
                 Blocks[i + 3, 4].Background = PathBrush;
             }
             for (int i = 0; i < 9; i++) {
-                Blocks[i + 9, 4].Tag = "Path";
+                BlockTypes[i + 9, 4] = BlockType.Path;
             }
 
             for (int i = 0; i < 27; i++) {
                 Blocks[18, i + 5].Background = PathBrush;
-                Blocks[18, i + 5].Tag = "Path";
+                BlockTypes[18, i + 5] = BlockType.Path;
             }
 
             for (int i = 0; i < 13; i++) {
                 Blocks[i + 5, 32].Background = PathBrush;
-                Blocks[i + 5, 32].Tag = "Path";
+                BlockTypes[i + 5, 32] = BlockType.Path;
             }
 
             for (int i = 0; i < 13; i++) {
                 Blocks[4, i + 19].Background = PathBrush;
-                Blocks[4, i + 19].Tag = "Path";
+                BlockTypes[4, i + 19] = BlockType.Path;
             }
 
             for (int i = 0; i < 27; i++) {
                 Blocks[i + 5, 18].Background = PathBrush;
-                Blocks[i + 5, 18].Tag = "Path";
+                BlockTypes[i + 5, 18] = BlockType.Path;
             }
 
             for (int i = 0; i < 15; i++) {
                 Blocks[32, i + 19].Background = PathBrush;
             }
             for (int i = 0; i < 9; i++) {
-                Blocks[32, i + 19].Tag = "Path";
+                BlockTypes[32, i + 19] = BlockType.Path;
             }
 
             //Cursor
@@ -134,24 +166,30 @@ namespace GemTDMaze {
 
         private void BlockRightTapped(object sender, RightTappedRoutedEventArgs e) {
             var block = sender as Border;
-            string tag = block.Tag as string;
-            if (tag == "Normal") {
+            var tag = ((int, int))block.Tag;
+            var type = BlockTypes[tag.Item1, tag.Item2];
+            if (type == BlockType.Normal) {
                 block.Background = NormalBackgroundBrush;
             }
-            else if (tag == "Path") {
+            else if (type == BlockType.Path) {
                 block.Background = PathBrush;
             }
         }
 
         private void BlockTapped(object sender, TappedRoutedEventArgs e) {
             var block = sender as Border;
-            string tag = block.Tag as string;
-            if (tag == "Normal" || tag == "Path") {
+            var tag = ((int, int))block.Tag;
+            var type = BlockTypes[tag.Item1, tag.Item2];
+            if (type == BlockType.Normal || type == BlockType.Path) {
                 block.Background = TappedBrush;
             }
-            else if (tag == "KeyPoint" || tag == "Unavailable") {
+            else if (type == BlockType.KeyPoint || type == BlockType.Unavailable) {
                 ShowMessageDialogAsync("不能在这里放置！");
             }
+
+            Blocks[Cursor.Item1, Cursor.Item2].BorderBrush = BlockBorderBrush;
+            Cursor = tag;
+            Blocks[Cursor.Item1, Cursor.Item2].BorderBrush = CursorBorderBrush;
         }
 
         private async void ShowMessageDialogAsync(string message) {
