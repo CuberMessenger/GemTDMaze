@@ -43,6 +43,8 @@ namespace GemTDMaze {
 
         private BlockType[,] BlockTypes = new BlockType[37, 37];
 
+        private short[,,,] Distances = new short[37,37,37,37];
+
         private (int, int) Cursor = (18, 18);
 
 
@@ -53,6 +55,57 @@ namespace GemTDMaze {
 
             InitializeMaze();
             InitializeAccelerator();
+        }
+
+        private void InitializeAdjacency() {
+            for (int i = 0; i < 37; i++) {
+                for (int j = 0; j < 37; j++) {
+                    //Skip stones
+                    if (Blocks[i,j].Background == TappedBrush) {
+                        continue;
+	                }
+
+                    //Up
+                    if (i > 0) {
+                        if (Blocks[i-1,j].Background != TappedBrush) {
+                            Distances[i,j,i-1,j] = 1;
+	                    }
+                        else {
+                            Distances[i,j,i-1,j] = short.MaxValue;
+                        }
+                    }
+
+                    //Down
+                    if (i < 36) {
+                        if (Blocks[i+1,j].Background != TappedBrush) {
+                            Distances[i,j,i+1,j] = 1;
+	                    }
+                        else {
+                            Distances[i,j,i+1,j] = short.MaxValue;
+                        }
+                    }
+
+                    //Left
+                    if (j > 0) {
+                        if (Blocks[i,j-1].Background != TappedBrush) {
+                            Distances[i,j,i,j-1] = 1;
+	                    }
+                        else {
+                            Distances[i,j,i,j-1] = short.MaxValue;
+                        }
+                    }
+
+                    //Right
+                    if (j < 36) {
+                        if (Blocks[i,j+1].Background != TappedBrush) {
+                            Distances[i,j,i,j+1] = 1;
+	                    }
+                        else {
+                            Distances[i,j,i,j+1] = short.MaxValue;
+                        }
+                    }
+                }
+            }
         }
 
         private void InitializeAccelerator() {
